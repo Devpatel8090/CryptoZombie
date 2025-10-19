@@ -2006,12 +2006,12 @@
     "1337": {
       "events": {},
       "links": {},
-      "address": "0x73A3d15022f5D902e9A79e95B7618a04ddfdC253",
-      "transactionHash": "0xf7eb4ce248c5825564e0d2ed9e7fcc45a5fab249c7533ee18d21e9fa8b806f84"
+      "address": "0x703760301310AA1A490798D94ecb2DE838CBBabb",
+      "transactionHash": "0x7569ef6677f10716ccb49709872749a49f0981337b5a0d4e61c6fb42b5d4dc07"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2025-10-18T22:37:31.768Z",
+  "updatedAt": "2025-10-19T01:51:28.174Z",
   "networkType": "ethereum",
   "devdoc": {
     "methods": {}
