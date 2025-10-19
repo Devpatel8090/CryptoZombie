@@ -1,0 +1,791 @@
+<!-- Base code  -->
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+
+<head>
+  <meta charset="UTF-8">
+  <title>CryptoZombies front-end</title>
+  <link rel="icon" href="favicon.ico">
+  <script language="javascript" type="text/javascript"
+    src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script language="javascript" type="text/javascript"
+    src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.2.7-rc.0/web3.min.js"></script>
+  <script language="javascript" type="text/javascript" src="cryptozombies_abi.js"></script>
+</head>
+
+<body>
+  <div id="txStatus"></div>
+  <div id="zombies"></div>
+
+  <button class="showZombieButton">Show Zombies</button>
+  <button class="createzombieButton">Create Zombie</button>
+  <button class="levelupButton">Level Up</button>
+
+  <script>
+
+    var cryptoZombies;
+    var userAccount;
+    const showZombieButton = document.querySelector('.showZombieButton');
+    const createzombieButton = document.querySelector('.createzombieButton');
+    const levelupButton = document.querySelector('.levelupButton');
+
+    function startApp() {
+
+      //ZombieOwnership contratc address
+      var cryptoZombiesAddress = "0x5A342D69d5C9ec6d1A75295496DC0F7791d5B16F";
+
+      cryptoZombies = new web3.eth.Contract(cryptoZombiesABI, cryptoZombiesAddress);
+
+
+      //the following code from Lesson 6, chapter 5 is obsolete
+      //     var accountInterval = setInterval(function () {
+
+      //      if (web3.eth.accounts[0] !== userAccount) {
+      //userAccount = web3.eth.accounts[0];
+
+      //     getZombiesByOwner(userAccount)
+      //      .then(displayZombies);
+      //  }
+      // }, 100);
+
+      cryptoZombies.events.Transfer({ filter: { _to: userAccount } })
+        .on("data", function (event) {
+          let data = event.returnValues;
+          getZombiesByOwner(userAccount).then(displayZombies);
+        }).on("error", console.error);
+    }
+
+    function displayZombies(ids) {
+      $("#zombies").empty();
+      for (id of ids) {
+
+        getZombieDetails(id)
+          .then(function (zombie) {
+
+
+            $("#zombies").append(`<div class="zombie">
+              <ul>
+                <li>Name: ${zombie.name}</li>
+                <li>DNA: ${zombie.dna}</li>
+                <li>Level: ${zombie.level}</li>
+                <li>Wins: ${zombie.winCount}</li>
+                <li>Losses: ${zombie.lossCount}</li>
+                <li>Ready Time: ${zombie.readyTime}</li>
+              </ul>
+            </div>`);
+          });
+      }
+
+    }
+
+    function createRandomZombie(name) {
+
+
+      $("#txStatus").text("Creating new zombie on the blockchain. This may take a while...");
+
+      return cryptoZombies.methods.createRandomZombie(name)
+        .send({ from: userAccount })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Successfully created " + name + "!");
+
+          getZombiesByOwner(userAccount).then(displayZombies);
+        })
+        .on("error", function (error) {
+
+          $("#txStatus").text(error);
+        });
+    }
+
+    function feedOnKitty(zombieId, kittyId) {
+      $("#txStatus").text("Eating a kitty. This may take a while...");
+      return cryptoZombies.methods.feedOnKitty(zombieId, kittyId)
+        .send({ from: userAccount })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Ate a kitty and spawned a new Zombie!");
+          getZombiesByOwner(userAccount).then(displayZombies);
+        })
+        .on("error", function (error) {
+          $("#txStatus").text(error);
+        });
+    }
+
+    function levelUp(zombieId) {
+      $("#txStatus").text("Leveling up your zombie...");
+      return cryptoZombies.methods.levelUp(zombieId)
+        .send({ from: userAccount, value: web3.utils.toWei("0.001", "ether") })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Power overwhelming! Zombie successfully leveled up");
+        })
+        .on("error", function (error) {
+          $("#txStatus").text(error);
+        });
+    }
+
+    function getZombieDetails(id) {
+      return cryptoZombies.methods.zombies(id).call()
+    }
+
+    function zombieToOwner(id) {
+      return cryptoZombies.methods.zombieToOwner(id).call()
+    }
+
+    function getZombiesByOwner(owner) {
+      return cryptoZombies.methods.getZombiesByOwner(owner).call()
+    }
+
+    window.addEventListener('load', async () => {
+      // Modern dapp browsers...
+      if (window.ethereum) {
+        window.web3 = new Web3(ethereum);
+        try {
+          // Request account access if needed
+          const accounts = await ethereum.enable();
+          // Acccounts now exposed
+          userAccount = accounts[0];
+          startApp()
+        } catch (error) {
+          // User denied account access...
+        }
+      }
+      // Legacy dapp browsers...
+      else if (window.web3) {
+        window.web3 = new Web3(web3.currentProvider);
+        // Acccounts always exposed
+        userAccount = web3.eth.accounts[0];
+        startApp()
+      }
+      // Non-dapp browsers...
+      else {
+        console.log('Non-Ethereum browser detected. You should consider trying MetaMask!');
+      }
+    });
+
+    //the following code from Lesson 6, chapter 2 is obsolete
+    //metamask no longer inject web3 since early 2021
+    //window.addEventListener('load', function () {
+
+    //    if (typeof web3 !== 'undefined') {
+    //     web3js = new Web3(web3.currentProvider);
+    //   } else {
+
+    //  }
+
+
+    //  startApp()
+
+    //  }) 
+
+    ethereum.on('accountsChanged', (accounts) => {
+      window.location.reload();
+    });
+
+    ethereum.on('chainChanged', (chainId) => {
+      window.location.reload();
+    });
+
+
+    createzombieButton.addEventListener('click', () => {
+      createRandomZombie(userAccount);
+
+    });
+
+    showZombieButton.addEventListener('click', () => {
+      getZombiesByOwner(userAccount)
+        .then(displayZombies);
+
+    });
+
+    levelupButton.addEventListener('click', () => {
+      getZombiesByOwner(userAccount)
+        .then(levelUp);
+
+    });
+
+
+
+  </script>
+</body>
+
+</html> -->
+
+
+
+
+<!-- UPdated. code -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CryptoZombies DApp - Made by D Army</title>
+  <!-- Tailwind CSS CDN for quick, clean UI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .thin-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .thin-scrollbar::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 9999px;
+    }
+
+    .zcard {
+      box-shadow: 0 10px 25px rgba(0, 0, 0, .06);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-6xl mx-auto p-5 md:p-8">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold tracking-tight">🧟‍♂️ CryptoZombies DApp - Made by D Army</h1>
+        <p class="text-sm text-slate-500">Multi-network • Loads from <code>contracts.json</code> • Images from DNA •
+          Attack • Feed on Kitty </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="networkBadge" class="text-xs px-3 py-1 rounded-full border bg-white">Network: -</span>
+        <button id="btnConnect"
+          class="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 transition">Connect Wallet</button>
+      </div>
+    </header>
+
+    <!-- Status / Active Info -->
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="md:col-span-2 bg-white rounded-2xl p-4 border zcard">
+        <h2 class="font-semibold mb-2">Connection</h2>
+        <pre id="activeInfo" class="text-xs text-slate-600 thin-scrollbar overflow-auto max-h-28 whitespace-pre-wrap">Account: -
+Contract: -</pre>
+        <div id="status" class="text-sm text-slate-700 mt-2">Not connected</div>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border zcard">
+        <h2 class="font-semibold mb-2">Quick Actions</h2>
+        <div class="flex flex-wrap gap-2">
+          <button id="btnRefresh" class="px-3 py-2 text-sm rounded-lg border hover:bg-slate-50">Refresh My
+            Zombies</button>
+          <button id="btnSwitchLocal" class="px-3 py-2 text-sm rounded-lg border hover:bg-slate-50"
+            title="Use MetaMask to switch">Switch to Local</button>
+          <button id="btnSwitchSepolia" class="px-3 py-2 text-sm rounded-lg border hover:bg-slate-50"
+            title="Use MetaMask to switch">Switch to Sepolia</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create & Army & Kitty -->
+    <section class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white rounded-2xl p-4 border zcard">
+        <h3 class="font-semibold mb-3">Create Zombie</h3>
+        <div class="flex gap-2">
+          <input id="zName" placeholder="Zombie name" class="w-full px-3 py-2 border rounded-lg" />
+          <button id="btnCreate"
+            class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500">Create</button>
+        </div>
+        <!-- <p class="text-xs text-slate-500 mt-2">Image is generated deterministically from DNA.</p> -->
+      </div>
+      <div class="bg-white rounded-2xl p-4 border zcard">
+        <h3 class="font-semibold mb-3">Build Army</h3>
+        <div class="flex gap-2">
+          <input id="armyCount" type="number" min="1" value="3" class="w-24 px-3 py-2 border rounded-lg" />
+          <button id="btnArmy" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500">Mint N</button>
+        </div>
+        <!-- <p class="text-xs text-slate-500 mt-2">Mints N random-named zombies to speed up your demo.</p> -->
+      </div>
+      <div class="bg-white rounded-2xl p-4 border zcard">
+        <h3 class="font-semibold mb-3">Kitty</h3>
+        <div class="bg-white rounded-2xl p-4 mb-2 border zcard mt-4">
+          <h3 class="font-semibold mb-3">Add Custom Kitty</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <input id="newKittyId" placeholder="Kitty ID" class="px-3 py-2 border rounded-lg" />
+            <input id="newKittyGenes" placeholder="Kitty Genes" class="px-3 py-2 border rounded-lg" />
+          </div>
+          <button id="btnAddKitty" class="mt-2 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-500">Add
+            Kitty</button>
+          <!-- <p class="text-xs text-slate-500 mt-2">Add a custom kitty to the MockKitty contract. Only available on Local
+            network.</p> -->
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="feedZombieId" placeholder="zombieId" class="px-3 py-2 border rounded-lg" />
+          <input id="kittyId" placeholder="kittyId" class="px-3 py-2 border rounded-lg" />
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button id="btnFeed" class="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-500">Feed</button>
+          <button id="btnSetKitty" class="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600"
+            title="Owner only">Set Kitty Address</button>
+        </div>
+        <!-- <p class="text-xs text-slate-500 mt-2">Requires MockKitty on Local. We auto-read its address from
+          <code>contracts.json</code>. -->
+        </p>
+      </div>
+    </section>
+
+    <!-- My Zombies -->
+    <section class="bg-white rounded-2xl p-4 border zcard mb-10">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold">My Zombies</h3>
+        <span id="zombieCount" class="text-xs text-slate-500">0</span>
+      </div>
+      <div id="myZombies" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <footer class="text-center text-xs text-slate-400 pb-6">© CryptoZombies Demo. For academic use.</footer>
+  </div>
+
+  <!-- Dependencies -->
+  <script src="./web3.min.js"></script>
+  <script src="./cryptozombies_abi.js"></script>
+
+  <script>
+    // ========= Global State =========
+    let web3, accounts, chainId, contract, contractAddr, kittyAddr;
+    const ABI = window.cryptoZombiesABI; // provided by cryptozombies_abi.js
+    let isReady = false; // toggled true after contract is instantiated
+
+    // Minimal fallback (last resort; please use contracts.json)
+    const FALLBACK_ADDRESSES = {
+      "1337": {
+        ZombieOwnership: { address: "0x0000000000000000000000000000000000000000" },
+        MockKitty: { address: "0x0000000000000000000000000000000000000000" }
+      }
+    };
+
+    const LEVEL_UP_FEE_WEI = "1000000000000000"; // 0.001 ETH (adjust to your contract)
+
+    // ========= Small Utils =========
+    function short(addr) { return addr ? addr.slice(0, 6) + "…" + addr.slice(-4) : "-"; }
+    function tierFromLevel(l) {
+      if (l >= 10) return 'diamond';
+      if (l >= 5) return 'gold';
+      if (l >= 3) return 'silver';
+      return 'bronze';
+    }
+
+
+    function dnaImgUrl(dna) {
+      return `https://robohash.org/${dna}?set=set2`;
+    }
+
+
+    function frameClassFor(level) {
+      const tier = tierFromLevel(Number(level));
+      return {
+        bronze: 'ring-2 ring-amber-500/60',
+        silver: 'ring-2 ring-slate-400/70',
+        gold: 'ring-4 ring-yellow-400/70',
+        diamond: 'ring-4 ring-cyan-400/80 drop-shadow-lg'
+      }[tier];
+    }
+
+    function badgeHtml(level) {
+      const tier = tierFromLevel(Number(level));
+      const label = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', diamond: 'Diamond' }[tier];
+      return `<span class="text-[10px] px-2 py-1 rounded-full bg-black/70 text-white">${label}</span>`;
+    }
+
+
+    function byId(id) { return document.getElementById(id); }
+    function escapeHtml(s) { return (s || "").replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c])); }
+
+    // ========= Address Book Loading =========
+    async function loadAddressBook(currentChainId) {
+      // 1) Try contracts.json (preferred)
+      try {
+        const res = await fetch('contracts.json', { cache: 'no-store' });
+        if (res.ok) {
+          const raw = await res.json();
+          const normalized = normalizeContractsJson(raw, currentChainId);
+          if (normalized) return normalized;
+        }
+      } catch (e) {
+        console.warn('contracts.json not found or invalid:', e.message);
+      }
+
+      // 2) Fallback
+      return FALLBACK_ADDRESSES;
+    }
+
+    // Accepts two shapes for contracts.json:
+    // A) Network-keyed: {"1337": { ZombieOwnership: {address}, MockKitty:{address} }, ...}
+    // B) Flat: { "ZombieOwnership": "0x..", "MockKitty": "0x.." }
+    function normalizeContractsJson(json, currentChainId) {
+      if (!json) return null;
+      if (json["1337"] || json["11155111"] || json["31337"]) return json; // shape A
+      if (json.ZombieOwnership || json.MockKitty) { // shape B
+        return {
+          [String(currentChainId)]: {
+            ZombieOwnership: json.ZombieOwnership ? { address: json.ZombieOwnership } : undefined,
+            MockKitty: json.MockKitty ? { address: json.MockKitty } : undefined
+          }
+        };
+      }
+      return null;
+    }
+
+    // ========= Init / Connect =========
+    function setActionsEnabled(enabled) {
+      const ids = ['btnCreate', 'btnArmy', 'btnFeed', 'btnSetKitty', 'btnRefresh'];
+      ids.forEach(id => {
+        const el = byId(id); if (el) el.disabled = !enabled;
+        if (el) el.classList.toggle('opacity-50', !enabled);
+        if (el) el.classList.toggle('cursor-not-allowed', !enabled);
+      });
+    }
+
+    async function connect() {
+      try {
+        if (!window.ethereum) {
+          byId('status').innerText = 'Install MetaMask to continue.';
+          setActionsEnabled(false);
+          return;
+        }
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        const hexChain = await ethereum.request({ method: 'eth_chainId' });
+        chainId = parseInt(hexChain, 16);
+        web3 = new Web3(window.ethereum);
+
+        const addressBook = await loadAddressBook(chainId);
+        const net = addressBook[String(chainId)];
+
+        if (!net || !net.ZombieOwnership || !net.ZombieOwnership.address) {
+          byId('status').innerText = `No ZombieOwnership address found for chain ${chainId}. Put addresses in contracts.json.`;
+          byId('networkBadge').innerText = `Network: ${chainId}`;
+          setActionsEnabled(false);
+          return;
+        }
+
+        contractAddr = net.ZombieOwnership.address;
+        kittyAddr = net.MockKitty && net.MockKitty.address ? net.MockKitty.address : null;
+
+        try { contractAddr = web3.utils.toChecksumAddress(contractAddr); } catch { }
+        if (kittyAddr) { try { kittyAddr = web3.utils.toChecksumAddress(kittyAddr); } catch { } }
+
+        contract = new web3.eth.Contract(ABI, contractAddr);
+        isReady = true;
+        setActionsEnabled(true);
+
+        try {
+          contract.events.NewZombie().on('data', ev => {
+            toast(`New Zombie #${ev.returnValues.zombieId}: ${ev.returnValues.name}`);
+            loadMyZombies();
+          });
+          contract.events.Transfer().on('data', ev => {
+            toast(`Transfer token #${ev.returnValues._tokenId} → ${short(ev.returnValues._to)}`);
+            loadMyZombies();
+          });
+        } catch (e) { console.warn('Event subscriptions skipped:', e.message); }
+
+        byId('networkBadge').innerText =
+          chainId === 1337 ? 'Network: Local (1337)'
+            : chainId === 31337 ? 'Network: Local (31337)'
+              : chainId === 11155111 ? 'Network: Sepolia (11155111)'
+                : `Network: ${chainId}`;
+
+        byId('activeInfo').innerText = `Account: ${accounts[0]}
+Contract: ${contractAddr}${kittyAddr ? `
+MockKitty: ${kittyAddr}` : ''}`;
+        byId('status').innerText = 'Connected ✅';
+
+        await loadMyZombies();
+      } catch (err) {
+        console.error(err);
+        byId('status').innerText = 'Connect failed: ' + (err?.message || err);
+        setActionsEnabled(false);
+      }
+    }
+
+    // auto-disable actions on first load
+    setActionsEnabled(false);
+
+    ethereum?.on('accountsChanged', () => location.reload());
+    ethereum?.on('chainChanged', () => location.reload());
+    ethereum?.on('chainChanged', () => location.reload());
+
+    // ========= Core Reads =========
+    async function loadMyZombies() {
+      if (!contract || !accounts) return;
+      try {
+        const owner = accounts[0];
+        const ids = await contract.methods.getZombiesByOwner(owner).call();
+        const data = [];
+        for (const id of ids) {
+          const z = await contract.methods.zombies(id).call();
+          data.push({ id: Number(id), name: z.name, dna: z.dna, level: Number(z.level), winCount: Number(z.winCount), lossCount: Number(z.lossCount), readyTime: Number(z.readyTime) });
+        }
+        renderZombies(data);
+      } catch (e) {
+        console.error(e);
+        byId('status').innerText = 'Failed to load zombies. Check network/ABI/address.';
+      }
+      setTimeout(() => {
+        const cards = document.querySelectorAll('#myZombies > div');
+        if (cards.length) cards[cards.length - 1].classList.add('ring-2', 'ring-rose-500');
+      }, 500);
+
+    }
+
+    function renderZombies(arr) {
+      byId('zombieCount').innerText = arr.length + ' total';
+      const root = byId('myZombies');
+      if (!arr.length) {
+        root.innerHTML = `<div class=\"text-sm text-slate-500\">No zombies yet. Create one above.</div>`;
+        return;
+      }
+      root.innerHTML = arr.map(z => `
+  <div class="p-4 border rounded-2xl bg-white zcard relative">
+  <div class="flex gap-3 items-start">
+    <div>
+      <div class="relative group">
+        <img src="${dnaImgUrl(z.dna)}" alt="zombie"
+          class="w-28 h-28 md:w-32 md:h-32 rounded-xl border ${frameClassFor(z.level)}" />
+        <div class="absolute -top-2 -left-2">${badgeHtml(z.level)}</div>
+        <div class="absolute -bottom-2 -right-2 text-[10px] px-2 py-1 rounded-full bg-indigo-600 text-white shadow">Lv
+          ${z.level}</div>
+      </div>
+    
+    
+       <div class="flex gap-5 ms-5 mt-5">
+            <button class="px-3 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-500" onclick="levelUp(${z.id})">Level Up</button>
+            
+      </div>
+    </div>
+    
+
+
+    <div class="flex-1">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-semibold">#${z.id} — ${escapeHtml(z.name)}</div>
+          <div class="text-xs text-slate-500">DNA: ${z.dna}</div>
+        </div>
+       
+      </div>
+      <div class="text-xs mt-1">W/L: <b>${z.winCount}</b>/<b>${z.lossCount}</b></div>
+      <div class="text-xs text-slate-600 mt-1">
+        ${(Math.floor(Date.now() / 1000) >= z.readyTime)
+          ? 'Cooldown: Ready '
+          : 'Cooldown: Ready in ' + (z.readyTime - Math.floor(Date.now() / 1000)) + 's'
+        }
+
+        
+      </div>
+
+      <div class="mt-3 grid grid-cols-1 gap-2">
+
+        <div class="flex gap-2">
+
+          <input id="atk_${z.id}" placeholder="targetId" class="px-3 py-2 text-sm border rounded-lg w-20" />
+          <button class="px-3 py-2 text-sm rounded-lg bg-rose-600 text-white hover:bg-rose-500"
+            onclick="attack(${z.id})">Attack</button>
+        </div>
+
+        <div class="flex gap-2">
+          <input id="kitty_${z.id}" placeholder="kittyId" class="px-3 py-2 text-sm border rounded-lg w-20" />
+          <button class="px-3 py-2 text-sm rounded-lg bg-lime-600 text-white hover:bg-lime-500"
+            onclick="feedOnKittyFor(${z.id})">Feed Kitty</button>
+        </div>
+
+
+      </div>
+    </div>
+  </div>
+</div>
+`).join('');
+
+    }
+
+    // ========= Write Actions =========
+    async function ensureConnected() {
+      if (!isReady || !contract) {
+        await connect();
+        if (!isReady) throw new Error('Wallet not connected / contract missing');
+      }
+    }
+
+    async function createZombie() {
+      try {
+        await ensureConnected();
+        const name = byId('zName').value.trim();
+        if (!name) return toast('Enter a name');
+        await contract.methods.createRandomZombie(name).send({ from: accounts[0] });
+        byId('zName').value = '';
+        await loadMyZombies();
+      } catch (e) {
+        toast('Create failed: ' + (e?.message || e));
+      }
+    }
+
+    // ========= Add Custom Kitty =========
+    async function addCustomKitty() {
+      if (!kittyAddr) return toast('MockKitty not deployed or not linked.');
+      try {
+        const kittyId = parseInt(byId('newKittyId').value);
+        const genes = byId('newKittyGenes').value.trim();
+
+        if (Number.isNaN(kittyId) || !genes) {
+          toast('Enter a valid Kitty ID and Genes value.');
+          return;
+        }
+
+        const mockKitty = new web3.eth.Contract([
+          {
+            "inputs": [
+              { "internalType": "uint256", "name": "_id", "type": "uint256" },
+              { "internalType": "uint256", "name": "_genes", "type": "uint256" }
+            ],
+            "name": "setGene",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          }
+        ], kittyAddr);
+
+        await mockKitty.methods.setGene(kittyId, genes).send({ from: accounts[0] });
+        toast(`Kitty ${kittyId} added with genes ${genes}`);
+        byId('newKittyId').value = '';
+        byId('newKittyGenes').value = '';
+      } catch (err) {
+        console.error(err);
+        toast('Add Kitty failed: ' + (err?.message || err));
+      }
+    }
+
+
+    async function levelUp(id) {
+      try {
+        await contract.methods.levelUp(id).send({ from: accounts[0], value: LEVEL_UP_FEE_WEI });
+        await loadMyZombies();
+      } catch (e) { toast('Level up failed: ' + e.message); }
+    }
+
+    async function attack(myId) {
+      const targetId = parseInt(byId(`atk_${myId}`).value);
+      if (Number.isNaN(targetId)) return toast('Enter target zombie id');
+      try {
+        await contract.methods.attack(myId, targetId).send({ from: accounts[0] });
+        await loadMyZombies();
+      } catch (e) { toast('Attack failed: ' + e.message); }
+    }
+
+    async function transferZombie(id) {
+      const to = byId(`to_${id}`).value.trim();
+      if (!web3.utils.isAddress(to)) return toast('Enter a valid address');
+      try {
+        await contract.methods.transferFrom(accounts[0], to, id).send({ from: accounts[0] });
+        await loadMyZombies();
+      } catch (e) { toast('Transfer failed: ' + e.message); }
+    }
+
+    // Feed a zombie on a specific kitty (used by per-zombie button)
+    async function feedOnKittyFor(zombieId) {
+      if (!kittyAddr) return toast('MockKitty not deployed on this network');
+      console.log(kittyAddr);
+      console.log(zombieId);
+      const kittyInput = byId(`kitty_${zombieId}`);
+      const kittyId = parseInt(kittyInput.value);
+      if (Number.isNaN(kittyId)) return toast('Enter valid Kitty ID');
+      try {
+        await contract.methods.feedOnKitty(zombieId, kittyId).send({ from: accounts[0] });
+        toast(`Zombie #${zombieId} fed on Kitty #${kittyId}!`);
+        await loadMyZombies();
+      } catch (e) {
+        toast('Feed failed: ' + e.message);
+      }
+    }
+
+    // Feed using manual input fields at the top “Kitty (Local)” panel
+    async function feedOnKitty() {
+      if (!kittyAddr) return toast('MockKitty not deployed on this network');
+      const zId = parseInt(byId('feedZombieId').value);
+      const kId = parseInt(byId('kittyId').value);
+      if (Number.isNaN(zId) || Number.isNaN(kId)) return toast('Enter valid IDs');
+      try {
+        await contract.methods.feedOnKitty(zId, kId).send({ from: accounts[0] });
+        toast(`Zombie #${zId} fed on Kitty #${kId}!`);
+        await loadMyZombies();
+      } catch (e) {
+        toast('Feed failed: ' + e.message);
+      }
+    }
+
+
+    async function setKittyAddress() {
+      if (!kittyAddr) return toast('No MockKitty in contracts.json for this chain');
+      try {
+        await contract.methods.setKittyContractAddress(kittyAddr).send({ from: accounts[0] });
+        toast('Kitty contract address set');
+      } catch (e) { toast('Setting kitty address failed: ' + e.message); }
+    }
+
+    async function buildArmy() {
+      const n = Math.max(1, parseInt(byId('armyCount').value) || 1);
+      for (let i = 0; i < n; i++) {
+        await contract.methods.createRandomZombie(`Z_${Date.now()}_${i}`).send({ from: accounts[0] });
+      }
+      await loadMyZombies();
+    }
+
+    // ========= UI Wiring =========
+    byId('btnConnect').addEventListener('click', connect);
+    byId('btnCreate').addEventListener('click', createZombie);
+    byId('btnArmy').addEventListener('click', buildArmy);
+    byId('btnFeed').addEventListener('click', feedOnKitty);
+    byId('btnSetKitty').addEventListener('click', setKittyAddress);
+    byId('btnRefresh').addEventListener('click', loadMyZombies);
+    byId('btnAddKitty').addEventListener('click', addCustomKitty);
+    byId('btnSwitchLocal').addEventListener('click', async () => {
+      try {
+        await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x539' /* 1337 */ }] });
+      } catch (e) { toast('Switch in MetaMask to Local 1337'); }
+    });
+    byId('btnSwitchSepolia').addEventListener('click', async () => {
+      try {
+        await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xAA36A7' /* 11155111 */ }] });
+      } catch (e) { toast('Switch in MetaMask to Sepolia 11155111'); }
+    });
+
+    // ========= Tiny Toast =========
+    function toast(msg) {
+      const el = document.createElement('div');
+      el.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-black text-white text-sm px-4 py-2 rounded-xl shadow-lg opacity-90';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2200);
+    }
+  </script>
+  <!-- Image Modal -->
+  <div id="imgModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b">
+        <div id="imgModalTitle" class="text-sm font-semibold"></div>
+        <button class="text-slate-500 hover:text-slate-700" onclick="closeImgModal()">✕</button>
+      </div>
+      <div class="p-4 flex items-center justify-center">
+        <img id="imgModalPic" src="" alt="Zombie" class="max-h-[70vh] w-auto" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openImgModal(src, title) {
+      const m = document.getElementById('imgModal');
+      document.getElementById('imgModalPic').src = decodeURIComponent(src);
+      document.getElementById('imgModalTitle').textContent = title;
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+    }
+    function closeImgModal() {
+      const m = document.getElementById('imgModal');
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+  </script>
+
+</body>
+
+</html>
