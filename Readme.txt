@@ -32,7 +32,7 @@ Setup Instructions:
 7. Create zombies, feed on kitties, make an army, attack on another zombie, upgrade the level and do many more in UI.
 
 
-GitHub Repository:
+GitHub Repository:https://github.com/Devpatel8090/CryptoZombie
 
 
 
